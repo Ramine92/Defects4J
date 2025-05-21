@@ -9,7 +9,7 @@ import java.util.*;
 public class MetricAnalyzerApp {
     private static final String DEFECTS4J_PATH = "/home/ramine001/defects4j/framework/bin/defects4j";
     private static final String PROJECTS_PATH = "/home/ramine001/defects4j/framework/projects";
-    private static final String[] PROJECTS = {"Lang", "Math"};
+    private static final String[] PROJECTS = {"Lang"};
     private static final String[] VERSIONS = {"b", "f"}; // buggy and fixed
 
     public static void main(String[] args) throws Exception {
@@ -23,12 +23,12 @@ public class MetricAnalyzerApp {
                     "lignes_code", "lignes_comm", "nb_methodes", "nb_interfaces",
                     "nb_sous_classes", "nb_classes_abstract", "jax_nb_methodes_abstraites",
                     "exceptions_try_catch", "exceptions_checked", "exceptions_unchecked", "exceptions_declared",
-                    "encapsulation_global_avg"
+                    "encapsulation_global_avg","dms_score"
             };
             writer.writeNext(header);
 
             for (String project : PROJECTS) {
-                for (int i = 1; i <= 1; i++) {
+                for (int i = 1; i <= 3; i++) {
                     for (String v : VERSIONS) {
                         String pid = project + "-" + i;
                         String version = v.equals("b") ? "buggy" : "fixed";
@@ -47,6 +47,9 @@ public class MetricAnalyzerApp {
                         JAXAnalyzer jax = new JAXAnalyzer(checkoutPath);
                         ExceptionAnalyzer ex = new ExceptionAnalyzer(checkoutPath);
                         EncapsulationAnalyzer en = new EncapsulationAnalyzer(checkoutPath);
+                        dmsAnalyzer dms = new dmsAnalyzer(checkoutPath);
+
+                        metrics.putAll(dms.analyze());
                         metrics.putAll(jax.analyze());
                         metrics.putAll(ex.analyze());
                         metrics.putAll(en.analyze());
