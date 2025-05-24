@@ -1,9 +1,11 @@
+
 package analyzers;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.*;
 
@@ -30,10 +32,9 @@ public class dmsAnalyzer {
         this.projectPath = projectPath;
     }
 
-    public Map<String, String> analyze() throws IOException {
+    public Map<String, Map<String, String>> analyze() throws IOException {
         JavaParser parser = new JavaParser();
-        double cumulativeScore = 0.0;
-        int methodCount = 0;
+        Map<String, Map<String, String>> result = new HashMap<>();
 
         try (Stream<Path> paths = Files.walk(projectPath)) {
             List<Path> javaFiles = paths
@@ -46,49 +47,59 @@ public class dmsAnalyzer {
                     if (!resultCU.isSuccessful() || resultCU.getResult().isEmpty()) continue;
 
                     CompilationUnit cu = resultCU.getResult().get();
-                    List<MethodDeclaration> methods = cu.findAll(MethodDeclaration.class);
 
-                    for (MethodDeclaration method : methods) {
-                        int oomrTotal = method.findAll(MethodCallExpr.class).size();
+                    List<ClassOrInterfaceDeclaration> classes = cu.findAll(ClassOrInterfaceDeclaration.class);
+                    for (ClassOrInterfaceDeclaration clazz : classes) {
+                        String className = clazz.getNameAsString();
 
-                        int cycloTotal = method.findAll(IfStmt.class).size()
-                                + method.findAll(ForStmt.class).size()
-                                + method.findAll(ForEachStmt.class).size()
-                                + method.findAll(WhileStmt.class).size()
-                                + method.findAll(DoStmt.class).size()
-                                + method.findAll(SwitchStmt.class).size();
+                        List<MethodDeclaration> methods = clazz.findAll(MethodDeclaration.class);
 
-                        int dangerCalls = 0;
-                        for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
-                            if (isCriticalMethod(call)) dangerCalls++;
+                        double cumulativeScore = 0.0;
+                        int methodCount = 0;
+
+                        for (MethodDeclaration method : methods) {
+                            int oomrTotal = method.findAll(MethodCallExpr.class).size();
+
+                            int cycloTotal = method.findAll(IfStmt.class).size()
+                                    + method.findAll(ForStmt.class).size()
+                                    + method.findAll(ForEachStmt.class).size()
+                                    + method.findAll(WhileStmt.class).size()
+                                    + method.findAll(DoStmt.class).size()
+                                    + method.findAll(SwitchStmt.class).size();
+
+                            int dangerCalls = 0;
+                            for (MethodCallExpr call : method.findAll(MethodCallExpr.class)) {
+                                if (isCriticalMethod(call)) dangerCalls++;
+                            }
+
+                            double rawScore = (oomrTotal * OOMR_WEIGHT)
+                                    + (cycloTotal * CYCLO_WEIGHT)
+                                    + (dangerCalls * DANGER_WEIGHT);
+
+                            double normalizedScore = rawScore / (
+                                    (MAX_OOMR * OOMR_WEIGHT) +
+                                            (MAX_CYCLO * CYCLO_WEIGHT) +
+                                            (MAX_DANGER * DANGER_WEIGHT)
+                            );
+
+                            cumulativeScore += Math.min(normalizedScore, 1.0);
+                            methodCount++;
                         }
 
-                        // Calcul du score brut
-                        double rawScore = (oomrTotal * OOMR_WEIGHT)
-                                + (cycloTotal * CYCLO_WEIGHT)
-                                + (dangerCalls * DANGER_WEIGHT);
+                        double finalScore = (methodCount > 0) ? cumulativeScore / methodCount : 0.0;
 
-                        // Normalisation sur des max arbitraires pour une cohérence entre 0 et 1
-                        double normalizedScore = rawScore / (
-                                (MAX_OOMR * OOMR_WEIGHT) +
-                                        (MAX_CYCLO * CYCLO_WEIGHT) +
-                                        (MAX_DANGER * DANGER_WEIGHT)
-                        );
-
-                        cumulativeScore += Math.min(normalizedScore, 1.0); // clamp à 1
-                        methodCount++;
+                        Map<String, String> metrics = new HashMap<>();
+                        metrics.put("dms_score", String.format(Locale.US, "%.4f", finalScore));
+                        result.put(className, metrics);
                     }
 
                 } catch (Exception e) {
+                    System.err.println("Erreur lors de l'analyse du fichier: " + javaFile);
                     e.printStackTrace();
                 }
             }
         }
 
-        double finalScore = (methodCount > 0) ? cumulativeScore / methodCount : 0.0;
-
-        Map<String, String> result = new HashMap<>();
-        result.put("dms_score", String.format("%.4f", finalScore));
         return result;
     }
 

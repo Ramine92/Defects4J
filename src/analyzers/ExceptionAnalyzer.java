@@ -1,3 +1,4 @@
+
 package analyzers;
 
 import com.github.javaparser.ParseResult;
@@ -9,9 +10,7 @@ import com.github.javaparser.utils.SourceRoot;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ExceptionAnalyzer {
     private final Path projectPath;
@@ -20,53 +19,44 @@ public class ExceptionAnalyzer {
         this.projectPath = projectPath;
     }
 
-    public Map<String, String> analyze() throws IOException {
-        Map<String, String> result = new HashMap<>();
-        int tryCatchBlocks = 0;
-        int checkedExceptions = 0;
-        int uncheckedExceptions = 0;
-        int declaredExceptions = 0;
-
+    public Map<String, Map<String, String>> analyze() throws IOException {
+        Map<String, Map<String, String>> result = new HashMap<>();
         SourceRoot sourceRoot = new SourceRoot(projectPath.resolve("src"));
         List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse();
 
         for (ParseResult<CompilationUnit> parseResult : parseResults) {
-            if (!parseResult.isSuccessful() || !parseResult.getResult().isPresent()) {
-                continue;
-            }
-
+            if (!parseResult.isSuccessful() || parseResult.getResult().isEmpty()) continue;
             CompilationUnit cu = parseResult.getResult().get();
 
-            // Nombre de blocs try/catch
-            List<TryStmt> tryStmts = cu.findAll(TryStmt.class);
-            tryCatchBlocks += tryStmts.size();
+            String className = cu.getPrimaryTypeName().orElse("UnknownClass");
+            Map<String, String> metrics = new HashMap<>();
 
-            // Parcourir les méthodes pour analyser exceptions déclarées
+            int tryCatchBlocks = cu.findAll(TryStmt.class).size();
+            int declaredExceptions = 0;
+            int checkedExceptions = 0;
+            int uncheckedExceptions = 0;
+
             List<MethodDeclaration> methods = cu.findAll(MethodDeclaration.class);
             for (MethodDeclaration method : methods) {
-                List<ReferenceType> thrownExceptions = method.getThrownExceptions();
-                declaredExceptions += thrownExceptions.size();
-
-                for (ReferenceType thrown : thrownExceptions) {
+                for (ReferenceType thrown : method.getThrownExceptions()) {
+                    declaredExceptions++;
                     String exceptionName = thrown.toString();
-                    if (isUnchecked(exceptionName)) {
-                        uncheckedExceptions++;
-                    } else {
-                        checkedExceptions++;
-                    }
+                    if (isUnchecked(exceptionName)) uncheckedExceptions++;
+                    else checkedExceptions++;
                 }
             }
-        }
 
-        result.put("exceptions_try_catch", String.valueOf(tryCatchBlocks));
-        result.put("exceptions_checked", String.valueOf(checkedExceptions));
-        result.put("exceptions_unchecked", String.valueOf(uncheckedExceptions));
-        result.put("exceptions_declared", String.valueOf(declaredExceptions));
+            metrics.put("exceptions_try_catch", String.valueOf(tryCatchBlocks));
+            metrics.put("exceptions_checked", String.valueOf(checkedExceptions));
+            metrics.put("exceptions_unchecked", String.valueOf(uncheckedExceptions));
+            metrics.put("exceptions_declared", String.valueOf(declaredExceptions));
+
+            result.put(className, metrics);
+        }
 
         return result;
     }
 
-    // Méthode simple de classification par nom
     private boolean isUnchecked(String exceptionName) {
         return exceptionName.contains("RuntimeException") ||
                 exceptionName.contains("NullPointerException") ||
@@ -74,4 +64,3 @@ public class ExceptionAnalyzer {
                 exceptionName.contains("IndexOutOfBoundsException");
     }
 }
-
