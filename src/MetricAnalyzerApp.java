@@ -8,7 +8,7 @@ import java.util.*;
 public class MetricAnalyzerApp {
     private static final String DEFECTS4J_PATH = "/home/ramine001/defects4j/framework/bin/defects4j";
     private static final String PROJECTS_PATH = "/home/ramine001/defects4j/framework/projects";
-    private static final String[] PROJECTS = {"Math"};
+    private static final String[] PROJECTS = {"Compress"};
     private static final String[] VERSIONS = {"b", "f"}; // buggy and fixed
 
     public static void main(String[] args) throws Exception {
