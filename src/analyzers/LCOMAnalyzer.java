@@ -1,3 +1,4 @@
+
 package analyzers;
 
 import com.github.javaparser.ParseResult;
@@ -18,11 +19,9 @@ public class LCOMAnalyzer {
         this.projectPath = projectPath;
     }
 
-    public Map<String, String> analyze() throws IOException {
-        Map<String, String> result = new HashMap<>();
-        int totalClasses = 0;
-        int sumLcom4 = 0;
-        int classesWithLcom4Gt1 = 0;
+    // Retourne un Map<ClassName, Map<metric, value>>
+    public Map<String, Map<String, String>> analyze() throws IOException {
+        Map<String, Map<String, String>> result = new HashMap<>();
 
         SourceRoot sourceRoot = new SourceRoot(projectPath.resolve("src"));
         List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse();
@@ -35,18 +34,13 @@ public class LCOMAnalyzer {
             for (ClassOrInterfaceDeclaration clazz : classes) {
                 if (clazz.isInterface()) continue; // Ignore interfaces
 
-                totalClasses++;
                 int lcom4 = computeLCOM4(clazz);
-                sumLcom4 += lcom4;
-                if (lcom4 > 1) classesWithLcom4Gt1++;
+
+                Map<String, String> metrics = new HashMap<>();
+                metrics.put("Lcom", String.valueOf(lcom4));
+                result.put(clazz.getNameAsString(), metrics);
             }
         }
-
-        double avgLcom4 = totalClasses > 0 ? (double) sumLcom4 / totalClasses : 0;
-
-        result.put("lcom4_avg", String.format("%.2f", avgLcom4));
-        result.put("lcom4_classes", String.valueOf(totalClasses));
-        result.put("lcom4_classes_gt1", String.valueOf(classesWithLcom4Gt1));
         return result;
     }
 
@@ -112,7 +106,6 @@ public class LCOMAnalyzer {
                 }
             }
         }
-        // Cas particulier : pas de méthodes => LCOM4=0 (considéré comme mauvais)
         return n == 0 ? 0 : components;
     }
 }

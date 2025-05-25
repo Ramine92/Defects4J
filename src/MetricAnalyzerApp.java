@@ -21,13 +21,13 @@ public class MetricAnalyzerApp {
                     "lignes_code", "lignes_comm", "nb_methodes", "nb_interfaces",
                     "nb_sous_classes", "nb_classes_abstract", "jax_nb_methodes_abstraites",
                     "exceptions_try_catch", "exceptions_checked", "exceptions_unchecked", "exceptions_declared",
-                    "import_conflicts", "star_imports",
-                    "encapsulation_global_avg", "dms_score"
+                    "ICU", "ICNU", "ICD", "ICC",
+                    "encapsulation_global_avg", "dms_score", "Lcom"
             };
             writer.writeNext(header);
 
             for (String project : PROJECTS) {
-                for (int i = 1; i <= 4; i++) {
+                for (int i = 1; i <= 2; i++) {
                     for (String v : VERSIONS) {
                         String pid = project + "-" + i;
                         String version = v.equals("b") ? "buggy" : "fixed";
@@ -46,14 +46,15 @@ public class MetricAnalyzerApp {
                         EncapsulationAnalyzer en = new EncapsulationAnalyzer(checkoutPath);
                         dmsAnalyzer dms = new dmsAnalyzer(checkoutPath);
                         ImportConflictAnalyzer imp = new ImportConflictAnalyzer(checkoutPath);
-
+                        LCOMAnalyzer lcom = new LCOMAnalyzer(checkoutPath);
                         // Merge des métriques pour CETTE version uniquement
                         Map<String, Map<String, String>> allMetrics = mergeClassMetrics(
                                 dms.analyze(),
                                 jax.analyze(),
                                 ex.analyze(),
                                 en.analyze(),
-                                imp.analyze()
+                                imp.analyze(),
+                                lcom.analyze()
                         );
 
                         List<Map<String, String>> rows = new ArrayList<>();
@@ -65,9 +66,6 @@ public class MetricAnalyzerApp {
                             metrics.put("version", version);
                             metrics.put("class", className);
                             rows.add(metrics);
-                            System.out.println("Class: " + className
-                                    + " => dms_score=" + metrics.get("dms_score")
-                                    + ", encapsulation_global_avg=" + metrics.get("encapsulation_global_avg"));
                             writer.writeNext(toCSVRow(header, metrics));
                         }
 
