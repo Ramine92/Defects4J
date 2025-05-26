@@ -22,7 +22,7 @@ public class MetricAnalyzerApp {
                     "nb_sous_classes", "nb_classes_abstract", "jax_nb_methodes_abstraites",
                     "DJEA", "NDJEA",
                     "ICU", "ICNU", "ICD", "ICC",
-                    "encapsulation_rate_methods","encapsulation_rate_fields","encapsulation_rate_total", "dms_score", "Lcom"
+                    "encapsulation_rate_methods","encapsulation_rate_fields","encapsulation_rate_total", "dms_score", "CohesionRate"
             };
             writer.writeNext(header);
 
@@ -46,7 +46,7 @@ public class MetricAnalyzerApp {
                         EncapsulationAnalyzer en = new EncapsulationAnalyzer(checkoutPath);
                         dmsAnalyzer dms = new dmsAnalyzer(checkoutPath);
                         ImportConflictAnalyzer imp = new ImportConflictAnalyzer(checkoutPath);
-                        LCOMAnalyzer lcom = new LCOMAnalyzer(checkoutPath);
+                        COMAnalyzer lcom = new COMAnalyzer(checkoutPath);
                         // Merge des métriques pour CETTE version uniquement
                         Map<String, Map<String, String>> allMetrics = mergeClassMetrics(
                                 dms.analyze(),

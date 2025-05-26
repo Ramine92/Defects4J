@@ -1,4 +1,3 @@
-
 package analyzers;
 
 import com.github.javaparser.ParseResult;
@@ -12,10 +11,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 
-public class LCOMAnalyzer {
+public class COMAnalyzer {
     private final Path projectPath;
 
-    public LCOMAnalyzer(Path projectPath) {
+    public COMAnalyzer(Path projectPath) {
         this.projectPath = projectPath;
     }
 
@@ -34,18 +33,18 @@ public class LCOMAnalyzer {
             for (ClassOrInterfaceDeclaration clazz : classes) {
                 if (clazz.isInterface()) continue; // Ignore interfaces
 
-                int lcom4 = computeLCOM4(clazz);
+                double cohesionRate = computeCohesionRate(clazz);
 
                 Map<String, String> metrics = new HashMap<>();
-                metrics.put("Lcom", String.valueOf(lcom4));
+                metrics.put("CohesionRate", String.format(Locale.US, "%.4f", cohesionRate));
                 result.put(clazz.getNameAsString(), metrics);
             }
         }
         return result;
     }
 
-    // Calcule LCOM4 pour une classe donnée
-    private int computeLCOM4(ClassOrInterfaceDeclaration clazz) {
+    // Calcule cohesionRate = (nb méthodes avec au moins un attribut en commun avec une autre) / (nb total de méthodes)
+    private double computeCohesionRate(ClassOrInterfaceDeclaration clazz) {
         List<String> fieldNames = new ArrayList<>();
         for (FieldDeclaration field : clazz.getFields()) {
             field.getVariables().forEach(var -> fieldNames.add(var.getNameAsString()));
@@ -57,55 +56,36 @@ public class LCOMAnalyzer {
         for (MethodDeclaration m : methods) {
             if (m.getBody().isPresent()) realMethods.add(m);
         }
-
-        // Construction du graphe : chaque méthode = un nœud
         int n = realMethods.size();
-        boolean[][] connected = new boolean[n][n];
+        if (n == 0) return 1.0; // convention : classe sans méthode = 100% cohésive
 
         // Pour chaque méthode, liste des attributs accédés
         List<Set<String>> methodFields = new ArrayList<>();
         for (MethodDeclaration m : realMethods) {
             Set<String> accessed = new HashSet<>();
             for (String field : fieldNames) {
-                if (m.toString().contains(field)) { // Simple, mais efficace pour un premier jet
+                if (m.toString().contains(field)) { // naïf mais efficace
                     accessed.add(field);
                 }
             }
             methodFields.add(accessed);
         }
 
-        // Deux méthodes sont liées si elles accèdent à au moins un attribut commun
+        // Compte le nombre de méthodes qui partagent au moins un attribut avec au moins une autre
+        int methodsWithCommonField = 0;
         for (int i = 0; i < n; i++) {
-            for (int j = i; j < n; j++) {
+            boolean sharesField = false;
+            for (int j = 0; j < n; j++) {
+                if (i == j) continue;
                 Set<String> intersection = new HashSet<>(methodFields.get(i));
                 intersection.retainAll(methodFields.get(j));
                 if (!intersection.isEmpty()) {
-                    connected[i][j] = true;
-                    connected[j][i] = true;
+                    sharesField = true;
+                    break;
                 }
             }
+            if (sharesField) methodsWithCommonField++;
         }
-
-        // Calcul du nombre de composantes connexes (BFS)
-        boolean[] visited = new boolean[n];
-        int components = 0;
-        for (int i = 0; i < n; i++) {
-            if (!visited[i]) {
-                components++;
-                Queue<Integer> queue = new LinkedList<>();
-                queue.add(i);
-                visited[i] = true;
-                while (!queue.isEmpty()) {
-                    int curr = queue.poll();
-                    for (int j = 0; j < n; j++) {
-                        if (connected[curr][j] && !visited[j]) {
-                            visited[j] = true;
-                            queue.add(j);
-                        }
-                    }
-                }
-            }
-        }
-        return n == 0 ? 0 : components;
+        return (double) methodsWithCommonField / n;
     }
 }
