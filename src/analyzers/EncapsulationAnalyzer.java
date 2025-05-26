@@ -1,4 +1,3 @@
-
 package analyzers;
 
 import com.github.javaparser.JavaParser;
@@ -6,6 +5,7 @@ import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -38,22 +38,45 @@ public class EncapsulationAnalyzer {
                 Map<String, String> metrics = new HashMap<>();
 
                 List<ClassOrInterfaceDeclaration> classes = cu.findAll(ClassOrInterfaceDeclaration.class);
-                int totalFields = 0;
-                int privateFields = 0;
-
                 for (ClassOrInterfaceDeclaration clazz : classes) {
+                    // Attributs (fields)
                     List<FieldDeclaration> fields = clazz.getFields();
-                    totalFields += fields.size();
-                    privateFields += (int) fields.stream().filter(f -> f.isPrivate()).count();
+                    int totalFields = fields.size();
+                    int privateFields = 0, protectedFields = 0, publicFields = 0, defaultFields = 0;
+                    for (FieldDeclaration f : fields) {
+                        if (f.isPrivate()) privateFields++;
+                        else if (f.isProtected()) protectedFields++;
+                        else if (f.isPublic()) publicFields++;
+                        else defaultFields++;
+                    }
+
+                    // Méthodes
+                    List<MethodDeclaration> methods = clazz.getMethods();
+                    int totalMethods = methods.size();
+                    int privateMethods = 0, protectedMethods = 0, publicMethods = 0, defaultMethods = 0;
+                    for (MethodDeclaration m : methods) {
+                        if (m.isPrivate()) privateMethods++;
+                        else if (m.isProtected()) protectedMethods++;
+                        else if (m.isPublic()) publicMethods++;
+                        else defaultMethods++;
+                    }
+
+                    // Formule 1 : Encapsulation méthodes (protégées + privées)
+                    double encapMethods = (totalMethods == 0) ? 1.0 : (double) (privateMethods + protectedMethods) / totalMethods;
+                    // Formule 2 : Encapsulation attributs (protégés + privés)
+                    double encapFields = (totalFields == 0) ? 1.0 : (double) (privateFields + protectedFields) / totalFields;
+                    // Formule 3 : Encapsulation totale
+                    int totalMembers = totalFields + totalMethods;
+                    double encapTotal = (totalMembers == 0) ? 1.0
+                            : (double) ((privateFields + protectedFields) + (privateMethods + protectedMethods)) / totalMembers;
+
+                    metrics.put("encapsulation_rate_methods", String.format(Locale.US, "%.4f", encapMethods));
+                    metrics.put("encapsulation_rate_fields", String.format(Locale.US, "%.4f", encapFields));
+                    metrics.put("encapsulation_rate_total", String.format(Locale.US, "%.4f", encapTotal));
+                    result.put(clazz.getNameAsString(), metrics);
                 }
-
-                double avg = (totalFields == 0) ? 1.0 : (double) privateFields / totalFields;
-                metrics.put("encapsulation_global_avg", String.format(Locale.US, "%.2f", avg));
-
-                result.put(className, metrics);
             }
         }
-
         return result;
     }
 }

@@ -20,9 +20,9 @@ public class MetricAnalyzerApp {
                     "project", "version", "class",
                     "lignes_code", "lignes_comm", "nb_methodes", "nb_interfaces",
                     "nb_sous_classes", "nb_classes_abstract", "jax_nb_methodes_abstraites",
-                    "exceptions_try_catch", "exceptions_checked", "exceptions_unchecked", "exceptions_declared",
+                    "DJEA", "NDJEA",
                     "ICU", "ICNU", "ICD", "ICC",
-                    "encapsulation_global_avg", "dms_score", "Lcom"
+                    "encapsulation_rate_methods","encapsulation_rate_fields","encapsulation_rate_total", "dms_score", "Lcom"
             };
             writer.writeNext(header);
 

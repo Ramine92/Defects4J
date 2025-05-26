@@ -1,4 +1,3 @@
-
 package analyzers;
 
 import com.github.javaparser.ParseResult;
@@ -31,25 +30,24 @@ public class ExceptionAnalyzer {
             String className = cu.getPrimaryTypeName().orElse("UnknownClass");
             Map<String, String> metrics = new HashMap<>();
 
-            int tryCatchBlocks = cu.findAll(TryStmt.class).size();
-            int declaredExceptions = 0;
-            int checkedExceptions = 0;
-            int uncheckedExceptions = 0;
+            int DJEA = 0;   // Default Java Exception Amount
+            int NDJEA = 0;  // Not Default Java Exception Amount
 
             List<MethodDeclaration> methods = cu.findAll(MethodDeclaration.class);
             for (MethodDeclaration method : methods) {
                 for (ReferenceType thrown : method.getThrownExceptions()) {
-                    declaredExceptions++;
                     String exceptionName = thrown.toString();
-                    if (isUnchecked(exceptionName)) uncheckedExceptions++;
-                    else checkedExceptions++;
+                    if (isDefaultJavaException(exceptionName)) {
+                        DJEA++;
+                    } else {
+                        NDJEA++;
+                    }
                 }
             }
 
-            metrics.put("exceptions_try_catch", String.valueOf(tryCatchBlocks));
-            metrics.put("exceptions_checked", String.valueOf(checkedExceptions));
-            metrics.put("exceptions_unchecked", String.valueOf(uncheckedExceptions));
-            metrics.put("exceptions_declared", String.valueOf(declaredExceptions));
+            // Tu peux garder les anciennes métriques si tu veux
+            metrics.put("DJEA", String.valueOf(DJEA));
+            metrics.put("NDJEA", String.valueOf(NDJEA));
 
             result.put(className, metrics);
         }
@@ -57,10 +55,27 @@ public class ExceptionAnalyzer {
         return result;
     }
 
-    private boolean isUnchecked(String exceptionName) {
-        return exceptionName.contains("RuntimeException") ||
-                exceptionName.contains("NullPointerException") ||
-                exceptionName.contains("IllegalArgumentException") ||
-                exceptionName.contains("IndexOutOfBoundsException");
+    // On considère default si le nom commence par java. ou javax.
+    private boolean isDefaultJavaException(String exceptionName) {
+        // Nettoie les génériques éventuels (Exception<T> -> Exception)
+        int genericPos = exceptionName.indexOf('<');
+        if (genericPos >= 0) {
+            exceptionName = exceptionName.substring(0, genericPos);
+        }
+        exceptionName = exceptionName.trim();
+        // Si fully qualified
+        if (exceptionName.startsWith("java.") || exceptionName.startsWith("javax.")) {
+            return true;
+        }
+        // Beaucoup de code n'utilise que le nom simple, alors on teste les principaux noms par défaut
+        Set<String> defaultExceptions = Set.of(
+                "Exception", "RuntimeException", "NullPointerException", "IllegalArgumentException",
+                "IndexOutOfBoundsException", "IllegalStateException", "ClassCastException",
+                "ArithmeticException", "ArrayIndexOutOfBoundsException", "ArrayStoreException",
+                "UnsupportedOperationException", "NumberFormatException", "IOException", "FileNotFoundException",
+                "SQLException", "NoSuchElementException", "IllegalAccessException", "IllegalMonitorStateException",
+                "InterruptedException", "CloneNotSupportedException", "InstantiationException"
+        );
+        return defaultExceptions.contains(exceptionName);
     }
 }
