@@ -8,7 +8,7 @@ import java.util.*;
 public class MetricAnalyzerApp {
     private static final String DEFECTS4J_PATH = "/home/ramine001/defects4j/framework/bin/defects4j";
     private static final String PROJECTS_PATH = "/home/ramine001/defects4j/framework/projects";
-    private static final String[] PROJECTS = {"Compress"};
+    private static final String[] PROJECTS = {"Math"};
     private static final String[] VERSIONS = {"b", "f"}; // buggy and fixed
 
     public static void main(String[] args) throws Exception {
@@ -46,7 +46,7 @@ public class MetricAnalyzerApp {
                         EncapsulationAnalyzer en = new EncapsulationAnalyzer(checkoutPath);
                         dmsAnalyzer dms = new dmsAnalyzer(checkoutPath);
                         ImportConflictAnalyzer imp = new ImportConflictAnalyzer(checkoutPath);
-                        COMAnalyzer lcom = new COMAnalyzer(checkoutPath);
+                        COMAnalyzer com = new COMAnalyzer(checkoutPath);
                         // Merge des métriques pour CETTE version uniquement
                         Map<String, Map<String, String>> allMetrics = mergeClassMetrics(
                                 dms.analyze(),
@@ -54,7 +54,7 @@ public class MetricAnalyzerApp {
                                 ex.analyze(),
                                 en.analyze(),
                                 imp.analyze(),
-                                lcom.analyze()
+                                com.analyze()
                         );
 
                         List<Map<String, String>> rows = new ArrayList<>();
